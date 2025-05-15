@@ -47,7 +47,13 @@ func main() {
 
 	r := gin.Default()
 
-	r.Use(cors.Default())
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:5174"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -58,19 +64,51 @@ func main() {
 	r.POST("/register", handlers.Register(db))
 	r.POST("/login", handlers.Login(db))
 
-	// Task CRUD endpoints
-	r.POST("/tasks", handlers.CreateTask(db))
-	r.GET("/tasks", handlers.GetTasks(db))
-	r.GET("/tasks/:id", handlers.GetTask(db))
-	r.PUT("/tasks/:id", handlers.UpdateTask(db))
-	r.DELETE("/tasks/:id", handlers.DeleteTask(db))
-
-	// Goal CRUD endpoints
-	r.POST("/goals", handlers.CreateGoal(db))
-	r.GET("/goals", handlers.GetGoals(db))
-	r.GET("/goals/:id", handlers.GetGoal(db))
-	r.PUT("/goals/:id", handlers.UpdateGoal(db))
-	r.DELETE("/goals/:id", handlers.DeleteGoal(db))
+	// Secure endpoints with JWT middleware
+	protected := r.Group("/")
+	protected.Use(handlers.JWTAuthMiddleware())
+	protected.GET("/dashboard", dashboardHandler(db))
+	protected.GET("/tasks", handlers.GetTasks(db))
+	protected.POST("/tasks", handlers.CreateTask(db))
+	protected.GET("/tasks/:id", handlers.GetTask(db))
+	protected.PUT("/tasks/:id", handlers.UpdateTask(db))
+	protected.DELETE("/tasks/:id", handlers.DeleteTask(db))
+	protected.GET("/goals", handlers.GetGoals(db))
+	protected.POST("/goals", handlers.CreateGoal(db))
+	protected.GET("/goals/:id", handlers.GetGoal(db))
+	protected.PUT("/goals/:id", handlers.UpdateGoal(db))
+	protected.DELETE("/goals/:id", handlers.DeleteGoal(db))
 
 	r.Run(":8080") // listen and serve on 0.0.0.0:8081
+}
+
+func dashboardHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		var completedTasks int64
+		db.Model(&models.Task{}).Where("user_id = ? AND status = ?", userID, "Done").Count(&completedTasks)
+		var tasks []models.Task
+		db.Where("user_id = ?", userID).Order("due_date asc").Limit(3).Find(&tasks)
+		var goals []models.Goal
+		db.Where("user_id = ?", userID).Find(&goals)
+		// Calculate average progress
+		avgProgress := 0
+		if len(goals) > 0 {
+			total := 0
+			for _, g := range goals {
+				total += g.Progress
+			}
+			avgProgress = total / len(goals)
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"completedTasks": completedTasks,
+			"upcomingTasks":  tasks,
+			"goalsProgress":  avgProgress,
+			"goals":          goals,
+		})
+	}
 }

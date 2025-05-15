@@ -1,27 +1,25 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { register } from '../../api/auth';
 
-const SignUp = ({ onSignUp }) => {
-    const [formData, setFormData] = useState({
-        username: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-    });
+const SignUp = () => {
+    const [form, setForm] = useState({ username: '', email: '', password: '' });
+    const [error, setError] = useState('');
+    const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
+
+    const handleSubmit = async e => {
         e.preventDefault();
-        // TODO: Implement actual signup logic
-        onSignUp();
-    };
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        setError('');
+        const res = await register(form);
+        if (res.message === 'User registered successfully') {
+            // Redirect to login with success flag
+            navigate('/login?registered=1');
+        } else {
+            setError(res.error || 'Registration failed');
+        }
     };
 
     return (
@@ -43,6 +41,7 @@ const SignUp = ({ onSignUp }) => {
 
                     {/* Sign Up Form */}
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {error && <div className="text-red-500 text-sm">{error}</div>}
                         <div>
                             <label htmlFor="username" className="block text-sm font-medium text-gray-700">
                                 Username
@@ -51,7 +50,7 @@ const SignUp = ({ onSignUp }) => {
                                 type="text"
                                 id="username"
                                 name="username"
-                                value={formData.username}
+                                value={form.username}
                                 onChange={handleChange}
                                 className="input-field mt-1"
                                 placeholder="johndoe"
@@ -67,7 +66,7 @@ const SignUp = ({ onSignUp }) => {
                                 type="email"
                                 id="email"
                                 name="email"
-                                value={formData.email}
+                                value={form.email}
                                 onChange={handleChange}
                                 className="input-field mt-1"
                                 placeholder="you@example.com"
@@ -83,23 +82,7 @@ const SignUp = ({ onSignUp }) => {
                                 type="password"
                                 id="password"
                                 name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                className="input-field mt-1"
-                                placeholder="••••••••"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                                Confirm Password
-                            </label>
-                            <input
-                                type="password"
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                value={formData.confirmPassword}
+                                value={form.password}
                                 onChange={handleChange}
                                 className="input-field mt-1"
                                 placeholder="••••••••"

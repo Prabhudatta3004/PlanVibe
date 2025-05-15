@@ -20,13 +20,32 @@ const TaskView = () => {
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ title: "", description: "", due_date: "", status: "To Do", priority: "Medium" });
     const [editId, setEditId] = useState(null);
+    const [error, setError] = useState('');
 
     // Fetch tasks on mount
     useEffect(() => {
-        getTasks(userId).then(data => {
-            setTasks(data);
+        const fetchTasks = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('http://localhost:8080/tasks', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    setTasks(data);
+                } else {
+                    setTasks([]);
+                    setError(data.error || 'Failed to fetch tasks');
+                }
+            } catch (err) {
+                setTasks([]);
+                setError('Failed to fetch tasks');
+            }
             setLoading(false);
-        });
+        };
+        fetchTasks();
     }, []);
 
     // Handle form input
@@ -186,7 +205,8 @@ const TaskView = () => {
         </div>
     );
 
-    if (loading) return <div>Loading...</div>;
+    if (loading) return <div className="p-8 text-center text-lg text-gray-300">Loading tasks...</div>;
+    if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
     return (
         <div className="flex flex-col min-h-screen w-full p-8 min-w-0 min-h-0">

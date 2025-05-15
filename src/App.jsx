@@ -7,40 +7,58 @@ import TaskView from './components/tasks/TaskView';
 import GoalView from './components/goals/GoalView';
 import Analytics from './components/analytics/Analytics';
 import Layout from './components/common/Layout';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Profile from './components/profile/Profile';
+
+function PrivateRoute({ children }) {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
 
 function App() {
-  // Set isAuthenticated to true by default for testing
-  const [isAuthenticated] = useState(true);
-
   return (
     <Router>
-      <Routes>
-        {/* Redirect to dashboard by default */}
-        <Route path="/" element={
-          <Layout>
-            <Dashboard />
-          </Layout>
-        } />
-        <Route path="/tasks" element={
-          <Layout>
-            <TaskView />
-          </Layout>
-        } />
-        <Route path="/goals" element={
-          <Layout>
-            <GoalView />
-          </Layout>
-        } />
-        <Route path="/analytics" element={
-          <Layout>
-            <Analytics />
-          </Layout>
-        } />
-
-        {/* Keep auth routes for future use */}
-        <Route path="/login" element={<Navigate to="/" replace />} />
-        <Route path="/signup" element={<Navigate to="/" replace />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/" element={
+            <PrivateRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </PrivateRoute>
+          } />
+          <Route path="/tasks" element={
+            <PrivateRoute>
+              <Layout>
+                <TaskView />
+              </Layout>
+            </PrivateRoute>
+          } />
+          <Route path="/goals" element={
+            <PrivateRoute>
+              <Layout>
+                <GoalView />
+              </Layout>
+            </PrivateRoute>
+          } />
+          <Route path="/analytics" element={
+            <PrivateRoute>
+              <Layout>
+                <Analytics />
+              </Layout>
+            </PrivateRoute>
+          } />
+          <Route path="/profile" element={
+            <PrivateRoute>
+              <Layout>
+                <Profile />
+              </Layout>
+            </PrivateRoute>
+          } />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }

@@ -1,26 +1,40 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { login } from '../../api/auth';
 
-const Login = ({ onLogin }) => {
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-        rememberMe: false,
-    });
+const Login = () => {
+    const [form, setForm] = useState({ email: '', password: '', rememberMe: false });
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        // TODO: Implement actual login logic
-        onLogin();
-    };
+    // Check for registration success in query params
+    const params = new URLSearchParams(location.search);
+    const registered = params.get('registered') === '1';
 
-    const handleChange = (e) => {
+    const handleChange = e => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
+        setForm(prev => ({
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+    };
+
+    const handleSubmit = async e => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        const res = await login(form);
+        setLoading(false);
+        if (res.token) {
+            localStorage.setItem('token', res.token);
+            localStorage.setItem('user', JSON.stringify(res.user));
+            navigate('/');
+        } else {
+            setError(res.error || 'Login failed');
+        }
     };
 
     return (
@@ -40,8 +54,16 @@ const Login = ({ onLogin }) => {
                         <p className="mt-2 text-gray-600">Welcome back! Let's get organized.</p>
                     </div>
 
+                    {/* Success message after registration */}
+                    {registered && (
+                        <div className="mb-4 text-green-600 text-center font-medium bg-green-50 border border-green-200 rounded p-2">
+                            Registration successful! Please log in.
+                        </div>
+                    )}
+
                     {/* Login Form */}
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {error && <div className="text-red-500 text-sm">{error}</div>}
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                                 Email
@@ -50,7 +72,7 @@ const Login = ({ onLogin }) => {
                                 type="email"
                                 id="email"
                                 name="email"
-                                value={formData.email}
+                                value={form.email}
                                 onChange={handleChange}
                                 className="input-field mt-1"
                                 placeholder="you@example.com"
@@ -66,7 +88,7 @@ const Login = ({ onLogin }) => {
                                 type="password"
                                 id="password"
                                 name="password"
-                                value={formData.password}
+                                value={form.password}
                                 onChange={handleChange}
                                 className="input-field mt-1"
                                 placeholder="••••••••"
@@ -80,7 +102,7 @@ const Login = ({ onLogin }) => {
                                     type="checkbox"
                                     id="rememberMe"
                                     name="rememberMe"
-                                    checked={formData.rememberMe}
+                                    checked={form.rememberMe}
                                     onChange={handleChange}
                                     className="h-4 w-4 text-mint rounded border-gray-300 focus:ring-mint"
                                 />
@@ -96,8 +118,9 @@ const Login = ({ onLogin }) => {
                         <button
                             type="submit"
                             className="w-full btn-primary flex justify-center"
+                            disabled={loading}
                         >
-                            Sign in
+                            {loading ? 'Logging in...' : 'Sign in'}
                         </button>
                     </form>
 
